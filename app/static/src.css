@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+/* テンプレートをスキャンしてクラスを抽出 */
+@source "../templates/**/*.html";
+
+/* 信号アイコンの基本スタイル（Tailwind 外） */
+.signal-dot {
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.6) inset,
+              0 4px 14px rgba(0, 0, 0, 0.25);
+}
+
+.pulse-red {
+  animation: pulseRed 1.6s infinite;
+}
+
+@keyframes pulseRed {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+  }
+  50% {
+    box-shadow: 0 0 0 12px rgba(239, 68, 68, 0);
+  }
+}
+
+/* キーボードフォーカス時のリングを強めに（アクセシビリティ） */
+:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+  border-radius: 4px;
+}

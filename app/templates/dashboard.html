@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{{ app_title }}</title>
+  <link rel="stylesheet" href="/static/tailwind.css" />
+</head>
+<body class="bg-slate-50 text-slate-800">
+  <a href="#main"
+     class="sr-only focus:not-sr-only focus:absolute focus:top-2 focus:left-2 focus:bg-white focus:text-slate-900 focus:px-3 focus:py-2 focus:rounded-md focus:shadow z-50">
+    本文へスキップ
+  </a>
+
+  <header class="bg-slate-900 text-white" role="banner">
+    <div class="max-w-5xl mx-auto px-4 sm:px-6 py-4 sm:py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+      <div>
+        <h1 class="text-lg sm:text-2xl font-bold tracking-wide">{{ app_title }}</h1>
+        <p class="text-slate-300 text-xs sm:text-sm mt-1">
+          本日 <time datetime="{{ today.isoformat() }}">{{ today.strftime("%Y/%m/%d (%a)") }}</time>（{{ timezone_name }}）
+          {% if last_updated %}
+            ／ 更新 <time datetime="{{ last_updated.isoformat() }}">{{ last_updated.strftime("%m/%d %H:%M") }}</time>
+            {% if next_refresh %}／ 次回 {{ next_refresh.strftime("%H:%M") }}{% endif %}
+          {% endif %}
+        </p>
+      </div>
+      <form method="post" action="/refresh" class="self-start sm:self-auto">
+        <button type="submit"
+          aria-label="スプレッドシートから最新データを再取得"
+          class="bg-indigo-500 hover:bg-indigo-400 focus-visible:bg-indigo-400 text-white text-sm font-semibold px-4 py-2 rounded-md shadow whitespace-nowrap">
+          いますぐ更新
+        </button>
+      </form>
+    </div>
+  </header>
+
+  <main id="main" class="max-w-5xl mx-auto px-4 sm:px-6 py-6 sm:py-8 space-y-8" role="main">
+
+    {% if last_error %}
+    <section role="alert" aria-live="assertive"
+             class="bg-red-50 border border-red-300 text-red-900 rounded-2xl px-4 py-3 text-sm">
+      <p class="font-semibold">
+        <span aria-hidden="true">⚠️</span>
+        スプレッドシートからのデータ取得に失敗しています
+      </p>
+      <p class="mt-1 text-xs break-all">{{ last_error }}</p>
+      {% if last_attempted %}
+      <p class="mt-1 text-xs text-red-700">
+        最終試行: {{ last_attempted.strftime("%Y/%m/%d %H:%M") }}
+        {% if last_updated %}／ 表示中のデータは {{ last_updated.strftime("%Y/%m/%d %H:%M") }} 取得分{% endif %}
+      </p>
+      {% endif %}
+    </section>
+    {% endif %}
+
+    <section aria-labelledby="summary-heading">
+      <h2 id="summary-heading" class="text-base sm:text-lg font-semibold text-slate-700 mb-3 sm:mb-4">サマリ</h2>
+      <ul class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 list-none p-0 m-0">
+        {% set cards = [
+          ("red",    "赤", "遅延中",   counts.red,    "bg-red-500",    "pulse-red"),
+          ("yellow", "黄", "要注意",   counts.yellow, "bg-yellow-400", ""),
+          ("blue",   "青", "順調",     counts.blue,   "bg-blue-500",   ""),
+          ("gray",   "灰", "情報不足", counts.gray,   "bg-slate-400",  "")
+        ] %}
+        {% for key, label, sub, count, bg, anim in cards %}
+        <li>
+          <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 sm:p-5 flex items-center gap-3 sm:gap-4 h-full">
+            <div role="img"
+                 aria-label="{{ label }}信号（{{ sub }}）"
+                 class="w-12 h-12 sm:w-16 sm:h-16 rounded-full {{ bg }} signal-dot {{ anim }} flex items-center justify-center text-white font-bold text-base sm:text-xl shrink-0">
+              <span aria-hidden="true">{{ label }}</span>
+            </div>
+            <div class="min-w-0">
+              <div class="text-xs text-slate-500">{{ sub }}</div>
+              <div class="text-2xl sm:text-3xl font-extrabold text-slate-900 leading-tight">
+                {{ count }}<span class="text-sm font-medium text-slate-500 ml-1">本</span>
+              </div>
+            </div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mt-3">
+        <details class="text-xs text-slate-700 order-2 sm:order-1">
+          <summary class="cursor-pointer text-indigo-700 hover:text-indigo-900 select-none font-medium">
+            <span aria-hidden="true">▶</span> 赤・黄・青の判定基準は？
+          </summary>
+          <div class="mt-3 bg-white border border-slate-200 rounded-xl p-4 space-y-2">
+            <p class="text-slate-700">
+              スプレッドシートの <strong>D列「投稿（公開予定日）」</strong> と
+              <strong>F列「状況」</strong> から、信号を自動判定しています。
+            </p>
+            <ul class="space-y-2 text-slate-700">
+              <li class="flex items-start gap-2">
+                <span role="img" aria-label="赤信号"
+                      class="inline-block w-3 h-3 rounded-full bg-red-500 signal-dot mt-1.5 shrink-0"></span>
+                <div><strong>赤：遅延中</strong> — 公開予定日を <strong>過ぎている</strong> のに完了していない。</div>
+              </li>
+              <li class="flex items-start gap-2">
+                <span role="img" aria-label="黄信号"
+                      class="inline-block w-3 h-3 rounded-full bg-yellow-400 signal-dot mt-1.5 shrink-0"></span>
+                <div><strong>黄：要注意</strong> — 公開予定日まで <strong>残り {{ blue_min_days - 1 }} 日以内</strong>（直前に迫っている）。</div>
+              </li>
+              <li class="flex items-start gap-2">
+                <span role="img" aria-label="青信号"
+                      class="inline-block w-3 h-3 rounded-full bg-blue-500 signal-dot mt-1.5 shrink-0"></span>
+                <div><strong>青：順調</strong> — 公開予定日まで <strong>残り {{ blue_min_days }} 日以上</strong>。</div>
+              </li>
+              <li class="flex items-start gap-2">
+                <span role="img" aria-label="灰信号"
+                      class="inline-block w-3 h-3 rounded-full bg-slate-400 signal-dot mt-1.5 shrink-0"></span>
+                <div><strong>灰：情報不足</strong> — 公開予定日（D列）が <strong>空欄</strong>。</div>
+              </li>
+            </ul>
+            {% if exclude_completed %}
+            <p class="text-slate-600 text-xs pt-2 border-t border-slate-100">
+              ※ F列が「{{ completed_statuses|join("」「") }}」または A列が「済」の <strong>公開済み案件は表示しません</strong>
+              {% if excluded_completed_count %}（除外: {{ excluded_completed_count }} 本）{% endif %}。
+              タイトルが「未入力」「未撮影」「未定」などの下書き行も除外しています。
+            </p>
+            {% endif %}
+          </div>
+        </details>
+        <p class="text-xs text-slate-600 order-1 sm:order-2 sm:text-right">合計 {{ counts.total }} 本</p>
+      </div>
+    </section>
+
+    {% if urgent %}
+    <section aria-labelledby="urgent-heading">
+      <h2 id="urgent-heading" class="text-base sm:text-lg font-semibold text-slate-700 mb-3 sm:mb-4">
+        いますぐ確認が必要な案件
+        <span class="text-sm font-normal text-slate-600">（赤 {{ counts.red }} ／ 黄 {{ counts.yellow }}）</span>
+      </h2>
+
+      {% set color_map = {"red":"bg-red-500","yellow":"bg-yellow-400","blue":"bg-blue-500","gray":"bg-slate-400"} %}
+      {% set text_map = {"red":"text-red-700","yellow":"text-yellow-800","blue":"text-blue-700","gray":"text-slate-700"} %}
+      {% set signal_label = {"red":"赤信号（遅延中）","yellow":"黄信号（要注意）","blue":"青信号（順調）","gray":"灰信号（情報不足）"} %}
+
+      <!-- モバイル：カードリスト -->
+      <ul class="space-y-2 md:hidden list-none p-0">
+        {% for s in urgent %}
+        <li class="bg-white rounded-xl shadow-sm border border-slate-200 p-3">
+          <div class="flex items-start gap-3">
+            <span role="img" aria-label="{{ signal_label[s.signal] }}"
+                  class="inline-block w-4 h-4 rounded-full {{ color_map[s.signal] }} signal-dot mt-1 shrink-0"></span>
+            <div class="flex-1 min-w-0">
+              <div class="flex items-center gap-2 text-xs text-slate-600 mb-0.5">
+                <span class="font-medium text-slate-800">{{ s.video.client }}</span>
+                {% if s.video.no %}<span>#{{ s.video.no }}</span>{% endif %}
+              </div>
+              <div class="font-semibold text-slate-900 leading-snug break-all">{{ s.video.title }}</div>
+              <dl class="mt-2 grid grid-cols-2 gap-x-3 gap-y-1 text-xs">
+                <div>
+                  <dt class="text-slate-500">公開予定</dt>
+                  <dd class="font-medium text-slate-800">
+                    {% if s.video.publish_date %}<time datetime="{{ s.video.publish_date.isoformat() }}">{{ s.video.publish_date.strftime("%Y/%m/%d") }}</time>{% else %}—{% endif %}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-slate-500">残り</dt>
+                  <dd class="font-bold {{ text_map[s.signal] }}">
+                    {% if s.days_remaining is not none %}
+                      {% if s.days_remaining < 0 %}{{ s.days_remaining|abs }} 日 超過{% else %}{{ s.days_remaining }} 日{% endif %}
+                    {% else %}—{% endif %}
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-slate-500">状況</dt>
+                  <dd class="font-medium text-slate-800">{{ s.video.status or "—" }}</dd>
+                </div>
+                <div>
+                  <dt class="text-slate-500">編集 / BO</dt>
+                  <dd class="font-medium text-slate-800 truncate">{{ s.video.editor or "—" }} / {{ s.video.bo or "—" }}</dd>
+                </div>
+              </dl>
+            </div>
+          </div>
+        </li>
+        {% endfor %}
+      </ul>
+
+      <!-- デスクトップ：テーブル -->
+      <div class="hidden md:block bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <table class="w-full text-sm">
+          <caption class="sr-only">確認が必要な案件の一覧。信号順に並んでいます。</caption>
+          <thead class="bg-slate-100 text-slate-700 text-xs">
+            <tr>
+              <th scope="col" class="px-3 py-2 text-left w-10">信号</th>
+              <th scope="col" class="px-3 py-2 text-left">クライアント</th>
+              <th scope="col" class="px-3 py-2 text-left">タイトル</th>
+              <th scope="col" class="px-3 py-2 text-left">公開予定</th>
+              <th scope="col" class="px-3 py-2 text-left">残り</th>
+              <th scope="col" class="px-3 py-2 text-left">状況</th>
+              <th scope="col" class="px-3 py-2 text-left">編集 / BO</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-slate-100">
+            {% for s in urgent %}
+            <tr>
+              <td class="px-3 py-2">
+                <span role="img" aria-label="{{ signal_label[s.signal] }}"
+                      class="inline-block w-4 h-4 rounded-full {{ color_map[s.signal] }} signal-dot align-middle"></span>
+              </td>
+              <td class="px-3 py-2 font-medium whitespace-nowrap text-slate-800">{{ s.video.client }}</td>
+              <td class="px-3 py-2 text-slate-900">
+                {% if s.video.no %}<span class="text-xs text-slate-500 mr-1">#{{ s.video.no }}</span>{% endif %}
+                {{ s.video.title }}
+              </td>
+              <td class="px-3 py-2 whitespace-nowrap text-slate-800">
+                {% if s.video.publish_date %}<time datetime="{{ s.video.publish_date.isoformat() }}">{{ s.video.publish_date.strftime("%Y/%m/%d") }}</time>{% else %}—{% endif %}
+              </td>
+              <td class="px-3 py-2 font-semibold whitespace-nowrap {{ text_map[s.signal] }}">
+                {% if s.days_remaining is not none %}
+                  {% if s.days_remaining < 0 %}{{ s.days_remaining|abs }} 日 超過{% else %}{{ s.days_remaining }} 日{% endif %}
+                {% else %}—{% endif %}
+              </td>
+              <td class="px-3 py-2 whitespace-nowrap text-slate-800">{{ s.video.status or "—" }}</td>
+              <td class="px-3 py-2 text-xs text-slate-600 whitespace-nowrap">
+                {{ s.video.editor or "—" }} / {{ s.video.bo or "—" }}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+    {% else %}
+    <section aria-labelledby="all-good-heading">
+      <div class="bg-white rounded-2xl border border-slate-200 p-8 text-center">
+        <p id="all-good-heading" class="text-slate-800 font-medium text-lg">いま対応が必要な案件はありません</p>
+        <p class="text-slate-600 text-sm mt-1">すべて順調に進行中です。</p>
+      </div>
+    </section>
+    {% endif %}
+
+    {% if gray_items %}
+    <section aria-labelledby="gray-heading">
+      <details class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
+        <summary class="px-4 sm:px-5 py-3 cursor-pointer flex items-center gap-3 hover:bg-slate-50 select-none">
+          <span role="img" aria-label="灰信号"
+                class="inline-block w-3 h-3 rounded-full bg-slate-400 signal-dot shrink-0"></span>
+          <span id="gray-heading" class="font-semibold text-slate-800">情報不足の案件</span>
+          <span class="text-sm text-slate-600">{{ gray_items|length }} 本</span>
+          <span class="ml-auto text-xs text-slate-500">公開予定日（D列）が空欄 <span aria-hidden="true">▶</span></span>
+        </summary>
+
+        <div class="border-t border-slate-100">
+          <!-- モバイル：カード -->
+          <ul class="md:hidden divide-y divide-slate-100 list-none p-0">
+            {% for s in gray_items %}
+            <li class="px-4 py-3">
+              <div class="flex items-center gap-2 text-xs text-slate-600 mb-0.5">
+                <span class="font-medium text-slate-800">{{ s.video.client }}</span>
+                {% if s.video.no %}<span>#{{ s.video.no }}</span>{% endif %}
+              </div>
+              <div class="font-medium text-slate-900 text-sm break-all">{{ s.video.title }}</div>
+              <div class="mt-1 text-xs text-slate-600">
+                状況: {{ s.video.status or "—" }} ／ 編集: {{ s.video.editor or "—" }} ／ BO: {{ s.video.bo or "—" }}
+              </div>
+            </li>
+            {% endfor %}
+          </ul>
+
+          <!-- デスクトップ：テーブル -->
+          <table class="hidden md:table w-full text-sm">
+            <caption class="sr-only">公開予定日が未設定の案件一覧</caption>
+            <thead class="bg-slate-50 text-slate-700 text-xs">
+              <tr>
+                <th scope="col" class="px-3 py-2 text-left">クライアント</th>
+                <th scope="col" class="px-3 py-2 text-left">タイトル</th>
+                <th scope="col" class="px-3 py-2 text-left">状況</th>
+                <th scope="col" class="px-3 py-2 text-left">編集 / BO</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              {% for s in gray_items %}
+              <tr>
+                <td class="px-3 py-2 whitespace-nowrap text-slate-800">{{ s.video.client }}</td>
+                <td class="px-3 py-2 text-slate-900">
+                  {% if s.video.no %}<span class="text-xs text-slate-500 mr-1">#{{ s.video.no }}</span>{% endif %}
+                  {{ s.video.title }}
+                </td>
+                <td class="px-3 py-2 whitespace-nowrap text-slate-800">{{ s.video.status or "—" }}</td>
+                <td class="px-3 py-2 text-xs text-slate-600 whitespace-nowrap">
+                  {{ s.video.editor or "—" }} / {{ s.video.bo or "—" }}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </details>
+    </section>
+    {% endif %}
+
+    <footer class="text-xs text-slate-500 text-center pt-4 pb-8" role="contentinfo">
+      {{ app_title }} ／ 信号は「F列 状況」と「D列 公開予定日」から自動判定
+    </footer>
+  </main>
+</body>
+</html>
