@@ -1,0 +1,52 @@
+name: Discord 朝の進捗通知
+
+# 毎朝 7:00 JST に進捗サマリを Discord に送る。
+# UTC 22:00 = JST 翌日 7:00。
+# workflow_dispatch を入れているので、Actions 画面から手動実行して即テストできる。
+
+on:
+  schedule:
+    - cron: "0 22 * * *"
+  workflow_dispatch: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Japanese font (Noto Sans CJK)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Discord notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          SHEET_ID: ${{ secrets.SHEET_ID }}
+          WORKSHEET_GID: ${{ secrets.WORKSHEET_GID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          DASHBOARD_URL: ${{ secrets.DASHBOARD_URL }}
+          SHEET_URL: ${{ secrets.SHEET_URL }}
+          USE_SAMPLE_DATA: "False"
+          TIMEZONE: "Asia/Tokyo"
+          # 毎朝の通知では @everyone を発火させてチーム全員に通知する
+          MENTION_EVERYONE: "True"
+          # ヘッダー検証や WORKSHEET_GID 不一致時の振る舞いは本番と同じ
+          FALLBACK_TO_SAMPLE_ON_ERROR: "False"
+          FALLBACK_TO_FIRST_SHEET: "False"
+        run: python scripts/discord_notify.py

@@ -7,3 +7,7 @@ apscheduler>=3.10,<4.0
 python-dotenv>=1.0
 pydantic>=2.10
 pytest>=8.3
+
+# Discord 通知用（scripts/discord_notify.py）
+pillow>=11.0
+requests>=2.32
