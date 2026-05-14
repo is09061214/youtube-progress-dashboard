@@ -554,7 +554,7 @@ def post_to_discord(
 
     content = "\n".join(lines)
 
-    bot_name = os.getenv("BOT_NAME", "みゅーちゃん").strip() or "みゅーちゃん"
+    bot_name = os.getenv("BOT_NAME", "ミュー").strip() or "ミュー"
     bot_avatar_url = os.getenv(
         "BOT_AVATAR_URL",
         "https://raw.githubusercontent.com/is09061214/youtube-progress-dashboard/main/app/static/bot-avatar.png",
