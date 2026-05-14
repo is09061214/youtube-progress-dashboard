@@ -554,14 +554,21 @@ def post_to_discord(
 
     content = "\n".join(lines)
 
+    bot_name = os.getenv("BOT_NAME", "みゅーちゃん").strip() or "みゅーちゃん"
+    bot_avatar_url = os.getenv(
+        "BOT_AVATAR_URL",
+        "https://raw.githubusercontent.com/is09061214/youtube-progress-dashboard/main/app/static/bot-avatar.png",
+    ).strip()
+
     payload = {
-        "username": "案件進捗ボット",
+        "username": bot_name,
         "content": content,
-        # @everyone を実際にメンションとして発火させる
         "allowed_mentions": {
             "parse": ["everyone"] if mention_everyone else []
         },
     }
+    if bot_avatar_url:
+        payload["avatar_url"] = bot_avatar_url
 
     files = {"file": ("summary.png", image_bytes, "image/png")}
     data = {"payload_json": json.dumps(payload, ensure_ascii=False)}
