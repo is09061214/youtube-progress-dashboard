@@ -1,12 +1,15 @@
 name: Discord 朝の進捗通知
 
-# 毎朝 7:00 JST に進捗サマリを Discord に送る。
-# UTC 22:00 = JST 翌日 7:00。
+# 毎朝 7:00 JST 頃に進捗サマリを Discord に送る。
+# 設定: UTC 21:55 = JST 翌日 6:55
+# 6:55 にずらしている理由:
+#   GitHub Actions の cron は「毎時 0 分」が最も混雑して遅延しやすいため、
+#   少し早めの 6:55 を狙い、数分の遅延があっても 7:00 前後に届くようにしている。
 # workflow_dispatch を入れているので、Actions 画面から手動実行して即テストできる。
 
 on:
   schedule:
-    - cron: "0 22 * * *"
+    - cron: "55 21 * * *"
   workflow_dispatch: {}
 
 jobs:
