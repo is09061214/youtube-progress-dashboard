@@ -539,6 +539,9 @@ def post_to_discord(
     lines = []
     if mention_everyone:
         lines.append("@everyone")
+    lines.append("# 📊 案件進捗ダッシュボード")
+    lines.append("-# 毎朝の進捗サマリと本日の格言")
+    lines.append("")
     lines.append(greeting)
     lines.append("")
     lines.append(_format_quote(quote))

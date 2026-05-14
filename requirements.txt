@@ -8,6 +8,9 @@ python-dotenv>=1.0
 pydantic>=2.10
 pytest>=8.3
 
-# Discord 通知用（scripts/discord_notify.py）
+# Discord 通知用（scripts/discord_notify.py, scripts/film_notify.py）
 pillow>=11.0
 requests>=2.32
+
+# Google Calendar API（scripts/film_notify.py）
+google-api-python-client>=2.140

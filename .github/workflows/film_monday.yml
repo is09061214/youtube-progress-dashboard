@@ -1,0 +1,46 @@
+name: 撮影予定 月曜朝通知
+
+# 毎週月曜 朝 7:00 JST 頃に「今後 14 日間の撮影予定」を Discord に送る。
+# 設定: UTC 日曜 21:55 = JST 月曜 06:55
+# 7:00 ぴったりではなく 5 分前倒しにしているのは、GitHub Actions の cron
+# が毎時 0 分付近で遅延しやすいため。
+on:
+  schedule:
+    - cron: "55 21 * * 0"
+  workflow_dispatch: {}
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Japanese font (Noto Sans CJK)
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends fonts-noto-cjk
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run film notification
+        env:
+          DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
+          CALENDAR_ID: ${{ secrets.CALENDAR_ID }}
+          GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
+          TIMEZONE: "Asia/Tokyo"
+          LOOKAHEAD_DAYS: "14"
+          FILMING_KEYWORD: "撮影"
+          MENTION_EVERYONE: "True"
+        run: python scripts/film_notify.py
