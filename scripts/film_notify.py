@@ -303,20 +303,22 @@ def generate_summary_image(events: list[dict], today: date, lookahead_days: int)
             draw.text((54, card_y + 8), date_str, font=date_font, fill=COLOR_TEXT_PRIMARY)
             date_w = draw.textbbox((0, 0), date_str, font=date_font)[2]
             # 曜日バッジ（複数日は幅可変）
-            badge_pad_x = 12
+            badge_pad_x = 14
             badge_x = 54 + date_w + 10
             wd_bbox = draw.textbbox((0, 0), wd_str, font=weekday_font)
             wd_w = wd_bbox[2] - wd_bbox[0]
-            badge_w = max(56, wd_w + badge_pad_x * 2)
-            badge_h = 28
-            badge_y = card_y + 14
+            badge_w = max(60, wd_w + badge_pad_x * 2)
+            badge_h = 34
+            badge_y = card_y + (card_h - badge_h) // 2
             draw.rounded_rectangle(
                 [badge_x, badge_y, badge_x + badge_w, badge_y + badge_h],
-                radius=14, fill=COLOR_BADGE_BG,
+                radius=badge_h // 2, fill=COLOR_BADGE_BG,
             )
+            # anchor="mm" でバッジ中央に正確に配置
             draw.text(
-                (badge_x + (badge_w - wd_w) // 2, badge_y + 2),
+                (badge_x + badge_w // 2, badge_y + badge_h // 2),
                 wd_str, font=weekday_font, fill=COLOR_TEXT_PRIMARY,
+                anchor="mm",
             )
             # タイトル開始位置（時刻は表示しない）
             title_x = badge_x + badge_w + 18
