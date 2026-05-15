@@ -1,0 +1,43 @@
+name: Schedule keepalive
+
+# 公開リポジトリでは、約 60 日間「リポジトリ活動」（コミット等）がないと
+# GitHub が scheduled ワークフローを自動無効化することがある。
+# 週 1 回だけタイムスタンプをコミットして活動を記録し、
+# 「Discord 朝の進捗通知」などの cron を止めにくくする。
+#
+# 既に無効化されたあとでは、一度 Actions でワークフローを再有効化する必要がある。
+
+on:
+  schedule:
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: schedule-keepalive
+  cancel-in-progress: true
+
+jobs:
+  tick:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Update keepalive stamp
+        run: |
+          mkdir -p .github
+          echo "last_utc=$(date -u +%Y-%m-%dT%H:%M:%SZ)" > .github/schedule-keepalive.log
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add .github/schedule-keepalive.log
+          if git diff --cached --quiet; then
+            echo "Nothing to commit"
+            exit 0
+          fi
+          git commit -m "chore: schedule keepalive (maintains GitHub Actions cron)"
+          git push

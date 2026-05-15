@@ -162,6 +162,13 @@ GET /healthz
 .venv/bin/pytest
 ```
 
+## Discord 朝の進捗通知（GitHub Actions）
+
+- ワークフロー **「Discord 朝の進捗通知」**（[.github/workflows/discord_morning.yml](.github/workflows/discord_morning.yml)）が **毎日 UTC 21:30**（日本時間では **朝 6:30 前後**。GitHub の遅延で **7 時台までずれる**ことがあります）にスプレッドシートを読み、Discord Webhook に投稿します。
+- GitHub の **Settings → Secrets and variables → Actions** に、`DISCORD_WEBHOOK_URL` / `SHEET_ID` / `WORKSHEET_GID` / `GOOGLE_SERVICE_ACCOUNT_JSON` などが入っている必要があります（手動実行で届くなら設定済みです）。
+- **Actions** でワークフローが **無効**になっていないか確認してください。黄色い帯で「60 日間活動がないためスケジュールが無効」などと出ていたら **Enable workflow** が必要です。
+- 公開リポジトリでは長期間コミットが無いとスケジュールが止まりやすいため、週 1 回だけタイムスタンプをコミットする **「Schedule keepalive」**（[.github/workflows/schedule_keepalive.yml](.github/workflows/schedule_keepalive.yml)）を入れています。`main` に **ブランチ保護で bot の push を禁止**している場合は、このワークフローが失敗するので保護ルールを調整するか、keepalive を無効化してください。
+
 ## デプロイ（Google Cloud Run の例）
 
 サービスアカウントの認証情報の渡し方は **2通り**あります。
@@ -206,6 +213,9 @@ gcloud run deploy video-progress-dashboard \
 ## ファイル構成
 
 ```
+.github/
+  workflows/          discord_morning / film_monday / schedule_keepalive 等
+  schedule-keepalive.log  keepalive ワークフローが週1で更新
 app/
   main.py             FastAPI ルート（/, /refresh, /healthz）
   config.py           列インデックス・状況語彙・信号閾値・タイムゾーン・フォールバック制御
