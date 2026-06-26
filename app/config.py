@@ -48,9 +48,10 @@ class ColumnIndex:
     no: int = 2            # C: # （案件番号）
     publish_date: int = 3  # D: 投稿（公開予定日）
     title: int = 4         # E: 動画
-    status: int = 5        # F: 状況
-    editor: int = 6        # G: 編集
-    bo: int = 7            # H: BO
+    duration: int = 5      # F: 完成尺（信号判定には未使用）
+    status: int = 6        # G: 状況
+    editor: int = 7        # H: 編集
+    bo: int = 8            # I: BO
 
 
 COLUMNS = ColumnIndex()
@@ -91,7 +92,7 @@ PLACEHOLDER_TITLES: set[str] = {
 # 「公開済み」案件をダッシュボードから除外するか
 EXCLUDE_COMPLETED: bool = True
 
-# F列に登場する代表的な状況。並び順は「公開に近い順」のイメージで定義。
+# G列に登場する代表的な状況。並び順は「公開に近い順」のイメージで定義。
 KNOWN_STATUSES: list[str] = [
     "未着手",
     "企画中",

@@ -41,8 +41,8 @@ def test_parse_date_blank_returns_none():
 
 
 def test_row_to_video_minimal():
-    # A:済 B:DEP C:116 D:5/10 E:タイトル F:完了 G:GS H:増田
-    row = ["済", "DEP", "116", "5/10", "テストタイトル", "完了", "GS", "増田"]
+    # A:済 B:DEP C:116 D:5/10 E:タイトル F:完成尺 G:完了 H:GS I:増田
+    row = ["済", "DEP", "116", "5/10", "テストタイトル", "10:00", "完了", "GS", "増田"]
     v = row_to_video(row, today=TODAY)
     assert v is not None
     assert v.client == "DEP"
@@ -56,11 +56,11 @@ def test_row_to_video_minimal():
 
 
 def test_row_to_video_skips_empty():
-    assert row_to_video(["", "", "", "", "", "", "", ""], today=TODAY) is None
+    assert row_to_video(["", "", "", "", "", "", "", "", ""], today=TODAY) is None
 
 
 def test_row_to_video_skips_placeholder_titles():
-    base = ["", "1sec", "47", "7/7", "未撮影", "未着手", "", "増田"]
+    base = ["", "1sec", "47", "7/7", "未撮影", "", "未着手", "", "増田"]
     assert row_to_video(base, today=TODAY) is None
     base[4] = "未入力"
     assert row_to_video(base, today=TODAY) is None
@@ -69,19 +69,19 @@ def test_row_to_video_skips_placeholder_titles():
 
 
 def test_row_to_video_keeps_legitimate_title():
-    row = ["", "1sec", "1", "5/10", "アレルギー検査について", "編集中", "GS", "増田"]
+    row = ["", "1sec", "1", "5/10", "アレルギー検査について", "", "編集中", "GS", "増田"]
     v = row_to_video(row, today=TODAY)
     assert v is not None
     assert v.title == "アレルギー検査について"
 
 
 def test_validate_header_passes_for_expected_layout():
-    header = ["投稿", "クライアント", "#", "投稿", "動画", "状況", "編集", "BO"]
+    header = ["投稿", "クライアント", "#", "投稿", "動画", "完成尺", "状況", "編集", "BO"]
     assert validate_header(header) == []
 
 
 def test_validate_header_detects_missing_keyword():
-    header = ["投稿", "得意先", "#", "投稿", "動画", "状況", "編集", "BO"]
+    header = ["投稿", "得意先", "#", "投稿", "動画", "完成尺", "状況", "編集", "BO"]
     issues = validate_header(header)
     assert len(issues) == 1
     assert "クライアント" in issues[0]

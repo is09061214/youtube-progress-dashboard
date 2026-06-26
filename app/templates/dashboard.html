@@ -88,7 +88,7 @@
           <div class="mt-3 bg-white border border-slate-200 rounded-xl p-4 space-y-2">
             <p class="text-slate-700">
               スプレッドシートの <strong>D列「投稿（公開予定日）」</strong> と
-              <strong>F列「状況」</strong> から、信号を自動判定しています。
+              <strong>G列「状況」</strong> から、信号を自動判定しています。
             </p>
             <ul class="space-y-2 text-slate-700">
               <li class="flex items-start gap-2">
@@ -114,7 +114,7 @@
             </ul>
             {% if exclude_completed %}
             <p class="text-slate-600 text-xs pt-2 border-t border-slate-100">
-              ※ F列が「{{ completed_statuses|join("」「") }}」または A列が「済」の <strong>公開済み案件は表示しません</strong>
+              ※ G列が「{{ completed_statuses|join("」「") }}」または A列が「済」の <strong>公開済み案件は表示しません</strong>
               {% if excluded_completed_count %}（除外: {{ excluded_completed_count }} 本）{% endif %}。
               タイトルが「未入力」「未撮影」「未定」などの下書き行も除外しています。
             </p>
@@ -294,7 +294,7 @@
     {% endif %}
 
     <footer class="text-xs text-slate-500 text-center pt-4 pb-8" role="contentinfo">
-      {{ app_title }} ／ 信号は「F列 状況」と「D列 公開予定日」から自動判定
+      {{ app_title }} ／ 信号は「G列 状況」と「D列 公開予定日」から自動判定
     </footer>
   </main>
 </body>

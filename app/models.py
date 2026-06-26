@@ -15,9 +15,9 @@ class Video:
     client: str           # クライアント名 (B列)
     title: str            # タイトル (E列)
     publish_date: Optional[date]  # 公開予定日 (D列)
-    status: str           # 状況 (F列) — 「完了」「サムネ待ち」など
-    editor: str           # 編集者 (G列)
-    bo: str               # BO担当 (H列)
+    status: str           # 状況 (G列) — 「完了」「サムネ待ち」など
+    editor: str           # 編集者 (H列)
+    bo: str               # BO担当 (I列)
     posted: bool          # A列が「済」か
 
 
