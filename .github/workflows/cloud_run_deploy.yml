@@ -1,0 +1,41 @@
+name: Deploy Cloud Run
+
+# main への push（アプリ本体）または手動実行で Cloud Run に再デプロイする。
+# 初回のみ GitHub Secrets に以下を登録してください:
+#   GCP_PROJECT_ID  … 例: gen-lang-client-0188619772
+#   GCP_SA_KEY      … Cloud Run / Cloud Build デプロイ権限付き SA の JSON
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "app/**"
+      - "Dockerfile"
+      - "requirements.txt"
+      - ".github/workflows/cloud_run_deploy.yml"
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Setup gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy youtube-progress-dashboard \
+            --source . \
+            --region asia-northeast1 \
+            --project "${{ secrets.GCP_PROJECT_ID }}" \
+            --quiet
