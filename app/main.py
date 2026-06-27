@@ -15,6 +15,7 @@ from fastapi.templating import Jinja2Templates
 from .config import (
     APP_TITLE,
     REFRESH_INTERVAL_MINUTES,
+    SHEET_URL,
     TIMEZONE_NAME,
     today_local,
 )
@@ -57,6 +58,7 @@ def dashboard(request: Request) -> HTMLResponse:
             "urgent": snapshot.urgent,
             "gray_items": snapshot.gray_items,
             "criteria_text": snapshot.criteria_text,
+            "sheet_url": SHEET_URL,
             "last_updated": store.last_updated,
             "last_error": store.last_error,
             "last_attempted": store.last_attempted,

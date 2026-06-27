@@ -68,5 +68,15 @@ REFRESH_INTERVAL_MINUTES: int = int(os.getenv("REFRESH_INTERVAL_MINUTES", "60"))
 PORT: int = int(os.getenv("PORT", "8000"))
 
 
+# 元スプレッドシートへのリンク。明示指定が無ければ SHEET_ID から組み立てる。
+def _default_sheet_url() -> str:
+    if SHEET_ID:
+        return f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/edit"
+    return ""
+
+
+SHEET_URL: str = os.getenv("SHEET_URL", "").strip() or _default_sheet_url()
+
+
 # 表示用の補助 ---------------------------------------------------------------
 APP_TITLE: str = "iMuseLLC 案件 進捗信号ダッシュボード"
