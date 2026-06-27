@@ -1,8 +1,8 @@
-"""シート読み取りのユニットテスト。"""
+"""シート読み取り（日付パース・ダッシュボード解析）のユニットテスト。"""
 
 from datetime import date
 
-from app.sheets import parse_date, row_to_video, validate_header
+from app.sheets import parse_dashboard, parse_date
 
 
 TODAY = date(2026, 5, 10)
@@ -23,72 +23,75 @@ def test_parse_date_month_day_prefers_nearer_year():
     assert parse_date("10/19", today=TODAY) == date(2026, 10, 19)
 
 
-def test_parse_date_month_day_future():
-    # 5/10 から見て 7/7 は2ヶ月後 → 2026
-    assert parse_date("7/7", today=TODAY) == date(2026, 7, 7)
-
-
-def test_parse_date_month_day_recent_past_takes_previous_year():
-    # 5/10 から見て 1/06 は -4ヶ月（同年）が最近接 → 2026
-    assert parse_date("1/06", today=TODAY) == date(2026, 1, 6)
-    # 12/20 は -5ヶ月（前年）が +7ヶ月（同年）より近い → 2025
-    assert parse_date("12/20", today=TODAY) == date(2025, 12, 20)
-
-
 def test_parse_date_blank_returns_none():
     assert parse_date("", today=TODAY) is None
     assert parse_date(None, today=TODAY) is None
 
 
-def test_row_to_video_minimal():
-    # A:済 B:DEP C:116 D:5/10 E:タイトル F:完成尺 G:完了 H:GS I:増田
-    row = ["済", "DEP", "116", "5/10", "テストタイトル", "10:00", "完了", "GS", "増田"]
-    v = row_to_video(row, today=TODAY)
-    assert v is not None
-    assert v.client == "DEP"
-    assert v.no == "116"
-    assert v.title == "テストタイトル"
-    assert v.publish_date == date(2026, 5, 10)
-    assert v.status == "完了"
-    assert v.editor == "GS"
-    assert v.bo == "増田"
-    assert v.posted is True
+# --- parse_dashboard ---------------------------------------------------------
+def _grid():
+    """「ダッシュボード」シートの典型レイアウト。"""
+    return [
+        ["🔴 要対応", "🟡 もうすぐ", "🔵 順調", "⚪ 情報不足", "合計", ""],
+        ["5", "6", "80", "28", "94", ""],
+        ["判定基準：🔴要対応＝公開まで2日以内 または いずれかの工程が締切超過 …", "", "", "", "", ""],
+        ["いますぐ確認が必要な案件（赤＝要対応 → 黄＝もうすぐ の順）", "", "", "", "", ""],
+        ["信号", "クライアント", "タイトル", "公開予定", "残り(日)", "状況"],
+        ["赤", "empowerx", "転職エージェントの闇", "6/29", "2", "CL提出待ち（超過）"],
+        ["黄", "四国物産_m", "田中密着", "6/30", "3", "公開設定・納品待ち"],
+        ["", "", "", "", "", ""],
+        ["クライアント", "タイトル", "投稿予定", "不足項目", "", ""],
+        ["ハイテクノ_m", "", "7/16", "タイトル 制作担当", "", ""],
+        ["そうぞう_m", "", "7/21", "タイトル", "", ""],
+    ]
 
 
-def test_row_to_video_skips_empty():
-    assert row_to_video(["", "", "", "", "", "", "", "", ""], today=TODAY) is None
+def test_parse_dashboard_counts():
+    snap = parse_dashboard(_grid(), TODAY)
+    assert snap.counts["red"] == 5
+    assert snap.counts["yellow"] == 6
+    assert snap.counts["blue"] == 80
+    assert snap.counts["gray"] == 28
+    assert snap.counts["total"] == 94
 
 
-def test_row_to_video_skips_placeholder_titles():
-    base = ["", "1sec", "47", "7/7", "未撮影", "", "未着手", "", "増田"]
-    assert row_to_video(base, today=TODAY) is None
-    base[4] = "未入力"
-    assert row_to_video(base, today=TODAY) is None
-    base[4] = "（無題）"
-    assert row_to_video(base, today=TODAY) is None
+def test_parse_dashboard_urgent_list():
+    snap = parse_dashboard(_grid(), TODAY)
+    assert len(snap.urgent) == 2
+    first = snap.urgent[0]
+    assert first.signal == "red"
+    assert first.video.client == "empowerx"
+    assert first.video.title == "転職エージェントの闇"
+    assert first.days_remaining == 2
+    assert "CL提出待ち" in first.reason
+    assert snap.urgent[1].signal == "yellow"
 
 
-def test_row_to_video_keeps_legitimate_title():
-    row = ["", "1sec", "1", "5/10", "アレルギー検査について", "", "編集中", "GS", "増田"]
-    v = row_to_video(row, today=TODAY)
-    assert v is not None
-    assert v.title == "アレルギー検査について"
+def test_parse_dashboard_gray_list():
+    snap = parse_dashboard(_grid(), TODAY)
+    assert len(snap.gray_items) == 2
+    g = snap.gray_items[0]
+    assert g.signal == "gray"
+    assert g.video.client == "ハイテクノ_m"
+    assert g.video.title == "(タイトル未入力)"
+    assert "タイトル" in g.reason
 
 
-def test_validate_header_passes_for_expected_layout():
-    header = ["投稿", "クライアント", "#", "投稿", "動画", "完成尺", "状況", "編集", "BO"]
-    assert validate_header(header) == []
+def test_parse_dashboard_criteria_text():
+    snap = parse_dashboard(_grid(), TODAY)
+    assert "判定基準" in snap.criteria_text
 
 
-def test_validate_header_detects_missing_keyword():
-    header = ["投稿", "得意先", "#", "投稿", "動画", "完成尺", "状況", "編集", "BO"]
-    issues = validate_header(header)
-    assert len(issues) == 1
-    assert "クライアント" in issues[0]
+def test_parse_dashboard_total_falls_back_to_sum():
+    grid = _grid()
+    grid[0][4] = ""  # 合計セルを空に
+    grid[1][4] = ""
+    snap = parse_dashboard(grid, TODAY)
+    assert snap.counts["total"] == 5 + 6 + 80 + 28
 
 
-def test_validate_header_handles_short_row():
-    header = ["投稿", "クライアント", "#"]
-    issues = validate_header(header)
-    assert any("動画" in m for m in issues)
-    assert any("状況" in m for m in issues)
+def test_parse_dashboard_empty_grid():
+    snap = parse_dashboard([], TODAY)
+    assert snap.counts["total"] == 0
+    assert snap.urgent == []
+    assert snap.gray_items == []

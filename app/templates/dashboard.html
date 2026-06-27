@@ -87,36 +87,33 @@
           </summary>
           <div class="mt-3 bg-white border border-slate-200 rounded-xl p-4 space-y-2">
             <p class="text-slate-700">
-              スプレッドシートの <strong>D列「投稿（公開予定日）」</strong> と
-              <strong>G列「状況」</strong> から、信号を自動判定しています。
+              スプレッドシートの <strong>「ダッシュボード」シート</strong> の判定を、そのまま表示しています。
             </p>
             <ul class="space-y-2 text-slate-700">
               <li class="flex items-start gap-2">
                 <span role="img" aria-label="赤信号"
                       class="inline-block w-3 h-3 rounded-full bg-red-500 signal-dot mt-1.5 shrink-0"></span>
-                <div><strong>赤：遅延中</strong> — 公開予定日を <strong>過ぎている</strong> のに完了していない。</div>
+                <div><strong>赤：要対応</strong> — 公開まで <strong>2日以内</strong>、または <strong>いずれかの工程が締切超過</strong>。</div>
               </li>
               <li class="flex items-start gap-2">
                 <span role="img" aria-label="黄信号"
                       class="inline-block w-3 h-3 rounded-full bg-yellow-400 signal-dot mt-1.5 shrink-0"></span>
-                <div><strong>黄：要注意</strong> — 公開予定日まで <strong>残り {{ blue_min_days - 1 }} 日以内</strong>（直前に迫っている）。</div>
+                <div><strong>黄：もうすぐ</strong> — 公開まで <strong>5日以内</strong>、または <strong>制作締切の1日前</strong>。</div>
               </li>
               <li class="flex items-start gap-2">
                 <span role="img" aria-label="青信号"
                       class="inline-block w-3 h-3 rounded-full bg-blue-500 signal-dot mt-1.5 shrink-0"></span>
-                <div><strong>青：順調</strong> — 公開予定日まで <strong>残り {{ blue_min_days }} 日以上</strong>。</div>
+                <div><strong>青：順調</strong> — 上記以外（締切に余裕がある）。</div>
               </li>
               <li class="flex items-start gap-2">
                 <span role="img" aria-label="灰信号"
                       class="inline-block w-3 h-3 rounded-full bg-slate-400 signal-dot mt-1.5 shrink-0"></span>
-                <div><strong>灰：情報不足</strong> — 公開予定日（D列）が <strong>空欄</strong>。</div>
+                <div><strong>灰：情報不足</strong> — タイトル・投稿予定日・担当の <strong>いずれかが未入力</strong>。</div>
               </li>
             </ul>
-            {% if exclude_completed %}
-            <p class="text-slate-600 text-xs pt-2 border-t border-slate-100">
-              ※ G列が「{{ completed_statuses|join("」「") }}」または A列が「済」の <strong>公開済み案件は表示しません</strong>
-              {% if excluded_completed_count %}（除外: {{ excluded_completed_count }} 本）{% endif %}。
-              タイトルが「未入力」「未撮影」「未定」などの下書き行も除外しています。
+            {% if criteria_text %}
+            <p class="text-slate-500 text-xs pt-2 border-t border-slate-100 leading-relaxed">
+              {{ criteria_text }}
             </p>
             {% endif %}
           </div>
@@ -241,7 +238,7 @@
                 class="inline-block w-3 h-3 rounded-full bg-slate-400 signal-dot shrink-0"></span>
           <span id="gray-heading" class="font-semibold text-slate-800">情報不足の案件</span>
           <span class="text-sm text-slate-600">{{ gray_items|length }} 本</span>
-          <span class="ml-auto text-xs text-slate-500">公開予定日（D列）が空欄 <span aria-hidden="true">▶</span></span>
+          <span class="ml-auto text-xs text-slate-500">タイトル・投稿予定日・担当のいずれか未入力 <span aria-hidden="true">▶</span></span>
         </summary>
 
         <div class="border-t border-slate-100">
@@ -251,11 +248,11 @@
             <li class="px-4 py-3">
               <div class="flex items-center gap-2 text-xs text-slate-600 mb-0.5">
                 <span class="font-medium text-slate-800">{{ s.video.client }}</span>
-                {% if s.video.no %}<span>#{{ s.video.no }}</span>{% endif %}
               </div>
               <div class="font-medium text-slate-900 text-sm break-all">{{ s.video.title }}</div>
               <div class="mt-1 text-xs text-slate-600">
-                状況: {{ s.video.status or "—" }} ／ 編集: {{ s.video.editor or "—" }} ／ BO: {{ s.video.bo or "—" }}
+                投稿予定: {% if s.video.publish_date %}{{ s.video.publish_date.strftime("%Y/%m/%d") }}{% else %}—{% endif %}
+                ／ 不足: <span class="text-slate-800">{{ s.reason or "—" }}</span>
               </div>
             </li>
             {% endfor %}
@@ -263,27 +260,24 @@
 
           <!-- デスクトップ：テーブル -->
           <table class="hidden md:table w-full text-sm">
-            <caption class="sr-only">公開予定日が未設定の案件一覧</caption>
+            <caption class="sr-only">情報が不足している案件の一覧</caption>
             <thead class="bg-slate-50 text-slate-700 text-xs">
               <tr>
                 <th scope="col" class="px-3 py-2 text-left">クライアント</th>
                 <th scope="col" class="px-3 py-2 text-left">タイトル</th>
-                <th scope="col" class="px-3 py-2 text-left">状況</th>
-                <th scope="col" class="px-3 py-2 text-left">編集 / BO</th>
+                <th scope="col" class="px-3 py-2 text-left">投稿予定</th>
+                <th scope="col" class="px-3 py-2 text-left">不足項目</th>
               </tr>
             </thead>
             <tbody class="divide-y divide-slate-100">
               {% for s in gray_items %}
               <tr>
                 <td class="px-3 py-2 whitespace-nowrap text-slate-800">{{ s.video.client }}</td>
-                <td class="px-3 py-2 text-slate-900">
-                  {% if s.video.no %}<span class="text-xs text-slate-500 mr-1">#{{ s.video.no }}</span>{% endif %}
-                  {{ s.video.title }}
+                <td class="px-3 py-2 text-slate-900">{{ s.video.title }}</td>
+                <td class="px-3 py-2 whitespace-nowrap text-slate-800">
+                  {% if s.video.publish_date %}<time datetime="{{ s.video.publish_date.isoformat() }}">{{ s.video.publish_date.strftime("%Y/%m/%d") }}</time>{% else %}—{% endif %}
                 </td>
-                <td class="px-3 py-2 whitespace-nowrap text-slate-800">{{ s.video.status or "—" }}</td>
-                <td class="px-3 py-2 text-xs text-slate-600 whitespace-nowrap">
-                  {{ s.video.editor or "—" }} / {{ s.video.bo or "—" }}
-                </td>
+                <td class="px-3 py-2 text-slate-800">{{ s.reason or "—" }}</td>
               </tr>
               {% endfor %}
             </tbody>
@@ -294,7 +288,7 @@
     {% endif %}
 
     <footer class="text-xs text-slate-500 text-center pt-4 pb-8" role="contentinfo">
-      {{ app_title }} ／ 信号は「G列 状況」と「D列 公開予定日」から自動判定
+      {{ app_title }} ／ 信号はスプレッドシート「ダッシュボード」シートの判定をそのまま表示
     </footer>
   </main>
 </body>

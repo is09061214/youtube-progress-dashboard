@@ -1,31 +1,30 @@
-"""動画データのキャッシュと、APScheduler による定期更新。"""
+"""ダッシュボードデータのキャッシュと、APScheduler による定期更新。"""
 
 from __future__ import annotations
 
 import logging
 import threading
-from datetime import date, datetime
+from datetime import datetime
 from typing import Optional
 
 from apscheduler.schedulers.background import BackgroundScheduler
 
 from .config import REFRESH_INTERVAL_MINUTES, TIMEZONE_NAME, now_local
-from .models import Video, VideoSignal
-from .sheets import fetch_videos
-from .signal import evaluate_video
+from .models import DashboardSnapshot
+from .sheets import fetch_dashboard
 
 logger = logging.getLogger(__name__)
 
 
 class VideoStore:
-    """取得した動画一覧をメモリにキャッシュする小さなストア。
+    """取得したダッシュボードのスナップショットをメモリにキャッシュする小さなストア。
 
     最後の取得結果（成功なら時刻、失敗なら例外メッセージ）も保持し、
     /healthz から鮮度を確認できるようにする。
     """
 
     def __init__(self) -> None:
-        self._videos: list[Video] = []
+        self._snapshot: DashboardSnapshot = DashboardSnapshot.empty()
         self._last_updated: Optional[datetime] = None
         self._last_error: Optional[str] = None
         self._last_attempted: Optional[datetime] = None
@@ -34,24 +33,28 @@ class VideoStore:
     def refresh(self) -> None:
         attempted_at = now_local()
         try:
-            videos = fetch_videos()
+            snapshot = fetch_dashboard()
         except Exception as e:
-            logger.exception("動画一覧の取得に失敗しました")
+            logger.exception("ダッシュボードの取得に失敗しました")
             with self._lock:
                 self._last_attempted = attempted_at
                 self._last_error = f"{type(e).__name__}: {e}"
             return
         with self._lock:
-            self._videos = videos
+            self._snapshot = snapshot
             self._last_updated = attempted_at
             self._last_attempted = attempted_at
             self._last_error = None
-        logger.info("動画一覧を更新しました（%d 本）", len(videos))
+        logger.info(
+            "ダッシュボードを更新しました（要対応・もうすぐ %d 件 / 情報不足 %d 件）",
+            len(snapshot.urgent),
+            len(snapshot.gray_items),
+        )
 
     @property
-    def videos(self) -> list[Video]:
+    def snapshot(self) -> DashboardSnapshot:
         with self._lock:
-            return list(self._videos)
+            return self._snapshot
 
     @property
     def last_updated(self) -> Optional[datetime]:
@@ -65,9 +68,6 @@ class VideoStore:
     def last_error(self) -> Optional[str]:
         return self._last_error
 
-    def evaluate(self, today: date) -> list[VideoSignal]:
-        return [evaluate_video(v, today) for v in self.videos]
-
 
 def start_scheduler(store: VideoStore) -> Optional[BackgroundScheduler]:
     """定期実行のスケジューラを起動する（無効なら何もしない）。"""
@@ -80,7 +80,7 @@ def start_scheduler(store: VideoStore) -> Optional[BackgroundScheduler]:
         store.refresh,
         "interval",
         minutes=REFRESH_INTERVAL_MINUTES,
-        id="refresh_videos",
+        id="refresh_dashboard",
         replace_existing=True,
         misfire_grace_time=60,
         coalesce=True,

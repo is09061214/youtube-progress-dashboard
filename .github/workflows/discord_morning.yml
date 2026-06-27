@@ -42,6 +42,9 @@ jobs:
         env:
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
           SHEET_ID: ${{ secrets.SHEET_ID }}
+          # 新スプレッドシートは判定済みの「ダッシュボード」タブを名前で指定する。
+          # 既定値（app/config.py）も "ダッシュボード" なので、Secret 未設定でも動く。
+          WORKSHEET_NAME: ${{ secrets.WORKSHEET_NAME }}
           WORKSHEET_GID: ${{ secrets.WORKSHEET_GID }}
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           DASHBOARD_URL: ${{ secrets.DASHBOARD_URL }}

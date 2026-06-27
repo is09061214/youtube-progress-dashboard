@@ -60,9 +60,7 @@ def _setup_credentials_from_env() -> None:
 _setup_credentials_from_env()
 
 # 既存の app パッケージを再利用
-from app.config import COMPLETED_STATUSES, EXCLUDE_COMPLETED  # noqa: E402
-from app.sheets import fetch_videos  # noqa: E402
-from app.signal import evaluate_video, is_completed, summarize  # noqa: E402
+from app.sheets import fetch_dashboard  # noqa: E402
 
 logger = logging.getLogger("discord_notify")
 logging.basicConfig(
@@ -146,8 +144,8 @@ def generate_summary_image(counts: dict, today: date) -> bytes:
 
     # ----- 4色信号 -----
     circles = [
-        ("red", "赤", "遅延中", counts.get("red", 0)),
-        ("yellow", "黄", "要注意", counts.get("yellow", 0)),
+        ("red", "赤", "要対応", counts.get("red", 0)),
+        ("yellow", "黄", "もうすぐ", counts.get("yellow", 0)),
         ("blue", "青", "順調", counts.get("blue", 0)),
         ("gray", "灰", "情報不足", counts.get("gray", 0)),
     ]
@@ -602,25 +600,17 @@ def main() -> int:
 
     # ----- データ取得 -----
     try:
-        videos = fetch_videos()
+        snapshot = fetch_dashboard()
     except Exception:
         logger.exception("シート取得に失敗しました。通知をスキップします。")
         return 2
 
-    signals = [evaluate_video(v, today) for v in videos]
-
-    excluded_completed = 0
-    if EXCLUDE_COMPLETED:
-        before = len(signals)
-        signals = [s for s in signals if not is_completed(s.video)]
-        excluded_completed = before - len(signals)
-
-    counts = summarize(signals)
+    counts = snapshot.counts
     logger.info(
-        "summary: red=%d yellow=%d blue=%d gray=%d total=%d (除外 %d)",
+        "summary: red=%d yellow=%d blue=%d gray=%d total=%d",
         counts.get("red", 0), counts.get("yellow", 0),
         counts.get("blue", 0), counts.get("gray", 0),
-        counts.get("total", 0), excluded_completed,
+        counts.get("total", 0),
     )
 
     # ----- 画像生成 -----
