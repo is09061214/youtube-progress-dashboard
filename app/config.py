@@ -42,8 +42,10 @@ GOOGLE_APPLICATION_CREDENTIALS: str = os.getenv(
 )
 # 読み取り対象タブ。WORKSHEET_NAME が最優先。新スプレッドシートでは
 # 判定済みの「ダッシュボード」シートを読むので、既定をその名前にしておく。
-WORKSHEET_NAME: str = os.getenv("WORKSHEET_NAME", "ダッシュボード")
-WORKSHEET_GID: str = os.getenv("WORKSHEET_GID", "")
+# `or` で結合しているのは、CI（GitHub Actions）が未設定シークレットを
+# 空文字列として環境変数に流し込むケースでも、既定名にフォールバックさせるため。
+WORKSHEET_NAME: str = os.getenv("WORKSHEET_NAME") or "ダッシュボード"
+WORKSHEET_GID: str = os.getenv("WORKSHEET_GID") or ""
 
 
 def _env_bool(name: str, default: bool) -> bool:
