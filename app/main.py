@@ -30,6 +30,24 @@ BASE_DIR = Path(__file__).resolve().parent
 TEMPLATES_DIR = BASE_DIR / "templates"
 STATIC_DIR = BASE_DIR / "static"
 
+
+def _asset_version(filename: str) -> str:
+    """静的ファイルの中身から短いハッシュを作る（キャッシュバスティング用）。
+
+    デプロイで CSS が変わるとハッシュも変わり、`?v=...` が変化するので
+    ブラウザが古い CSS をキャッシュし続ける事故を防ぐ。
+    """
+    import hashlib
+
+    path = STATIC_DIR / filename
+    try:
+        return hashlib.md5(path.read_bytes()).hexdigest()[:8]
+    except OSError:
+        return "dev"
+
+
+CSS_VERSION = _asset_version("tailwind.css")
+
 app = FastAPI(title=APP_TITLE)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
@@ -59,6 +77,7 @@ def dashboard(request: Request) -> HTMLResponse:
             "gray_items": snapshot.gray_items,
             "criteria_text": snapshot.criteria_text,
             "sheet_url": SHEET_URL,
+            "css_version": CSS_VERSION,
             "last_updated": store.last_updated,
             "last_error": store.last_error,
             "last_attempted": store.last_attempted,
