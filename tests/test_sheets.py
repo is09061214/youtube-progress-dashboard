@@ -30,19 +30,24 @@ def test_parse_date_blank_returns_none():
 
 # --- parse_dashboard ---------------------------------------------------------
 def _grid():
-    """「ダッシュボード」シートの典型レイアウト。"""
+    """「ダッシュボード」シートの典型レイアウト。
+
+    実シートと同じく、要対応表（左: 列0-7）と情報不足表（右: 列9-12）が
+    同じ行に左右並びで配置されている点を再現する。
+    """
     return [
-        ["🔴 要対応", "🟡 もうすぐ", "🔵 順調", "⚪ 情報不足", "合計", ""],
-        ["5", "6", "80", "28", "94", ""],
-        ["判定基準：🔴要対応＝公開まで2日以内 または いずれかの工程が締切超過 …", "", "", "", "", ""],
-        ["いますぐ確認が必要な案件（赤＝要対応 → 黄＝もうすぐ の順）", "", "", "", "", ""],
-        ["信号", "クライアント", "タイトル", "公開予定", "残り(日)", "状況"],
-        ["赤", "empowerx", "転職エージェントの闇", "6/29", "2", "CL提出待ち（超過）"],
-        ["黄", "四国物産_m", "田中密着", "6/30", "3", "公開設定・納品待ち"],
-        ["", "", "", "", "", ""],
-        ["クライアント", "タイトル", "投稿予定", "不足項目", "", ""],
-        ["ハイテクノ_m", "", "7/16", "タイトル 制作担当", "", ""],
-        ["そうぞう_m", "", "7/21", "タイトル", "", ""],
+        ["🔴 要対応", "🟡 もうすぐ", "🔵 順調", "⚪ 情報不足", "合計", "", "", "", "", "", "", "", ""],
+        ["5", "6", "80", "28", "94", "", "", "", "", "", "", "", ""],
+        ["判定基準：🔴要対応＝公開まで2日以内 …", "", "", "", "", "", "", "", "", "", "", "", ""],
+        ["いますぐ確認が必要な案件", "", "", "", "", "", "", "", "", "情報不足の案件", "", "", ""],
+        ["信号", "クライアント", "タイトル", "公開予定", "残り(日)", "状況", "編集", "BO",
+         "", "クラアント", "タイトル", "投稿予定", "不足項目"],
+        ["赤", "empowerx", "転職エージェントの闇", "6/29", "2", "CL提出待ち（超過）", "安里", "岩渕",
+         "", "1sec._m", "", "8/18", "タイトル 制作担当"],
+        ["黄", "四国物産_m", "田中密着", "6/30", "3", "公開設定・納品待ち", "イカラシ", "岩渕",
+         "", "DEP_m", "", "8/19", "タイトル 制作担当"],
+        ["", "", "", "", "", "", "", "",
+         "", "そうぞう_m", "7/7涙やけ_ショート", "", "投稿予定日"],
     ]
 
 
@@ -67,14 +72,28 @@ def test_parse_dashboard_urgent_list():
     assert snap.urgent[1].signal == "yellow"
 
 
-def test_parse_dashboard_gray_list():
+def test_parse_dashboard_gray_list_reads_right_table():
+    # 情報不足表は右側（列9-12）。左の要対応表の列を誤って拾わないこと。
     snap = parse_dashboard(_grid(), TODAY)
-    assert len(snap.gray_items) == 2
-    g = snap.gray_items[0]
-    assert g.signal == "gray"
-    assert g.video.client == "ハイテクノ_m"
-    assert g.video.title == "(タイトル未入力)"
-    assert "タイトル" in g.reason
+    assert len(snap.gray_items) == 3
+    g0 = snap.gray_items[0]
+    assert g0.signal == "gray"
+    assert g0.video.client == "1sec._m"          # 右表の値（empowerx ではない）
+    assert g0.video.title == "(タイトル未入力)"   # 空タイトル
+    assert g0.reason == "タイトル 制作担当"
+    # 左表が尽きた後（行が左で空）も、右表の行を読み続ける
+    g2 = snap.gray_items[2]
+    assert g2.video.client == "そうぞう_m"
+    assert g2.video.title == "7/7涙やけ_ショート"
+    assert g2.reason == "投稿予定日"
+
+
+def test_parse_dashboard_gray_not_polluted_by_urgent():
+    # 要対応のクライアント（empowerx 等）が情報不足に混ざっていないこと
+    snap = parse_dashboard(_grid(), TODAY)
+    gray_clients = {g.video.client for g in snap.gray_items}
+    assert "empowerx" not in gray_clients
+    assert "四国物産_m" not in gray_clients
 
 
 def test_parse_dashboard_criteria_text():
